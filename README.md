@@ -62,6 +62,27 @@ https://nishinatoshiharu.com/percona-slowquerylog/
 
 * アプリにCloud Traceの導入
 
+https://cloud.google.com/trace/docs/setup/go
+
+https://opencensus.io/quickstart/go/tracing/
+
+https://github.com/census-instrumentation/opencensus-go
+
+traceしたい部分に以下を書く
+```go
+	// 3. Create a span with the background context, making this the parent span.
+	// A span must be closed.
+	ctx, span := trace.StartSpan(context.Background(), "main")
+	// 5b. Make the span close at the end of this function.
+	defer span.End()
+```
+
+以下を使うとhttpリクエストや, sqlクエリの実行回数・時間も計測できるっぽい
+
+https://pkg.go.dev/go.opencensus.io/plugin/ochttp
+
+https://pkg.go.dev/github.com/opencensus-integrations/ocsql
+
 
 ### アプリ最適化
 
