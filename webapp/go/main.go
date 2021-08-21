@@ -193,6 +193,9 @@ func getEnv(key string, defaultValue string) string {
 	return defaultValue
 }
 
+var exist_isu = map[string]bool{}
+var exist_isu_mtx sync.Mutex
+
 func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 	return &MySQLConnectionEnv{
 		Host:     getEnv("MYSQL_HOST", "192.168.0.12"),
@@ -429,6 +432,23 @@ func postInitialize(c echo.Context) error {
 					}
 
 			}
+		}
+	}
+	{
+		isus := []Isu{}
+		err = db.Select(&isus,
+			"SELECT * FROM `isu`")
+		if err != nil {
+			c.Logger().Errorf("db error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		for k := range exist_isu {
+			delete(exist_isu, k)
+		}
+
+		for _, isu := range isus {
+			exist_isu[isu.JIAIsuUUID] = true
 		}
 	}
 
@@ -802,6 +822,9 @@ func postIsu(c echo.Context) error {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+	exist_isu_mtx.Lock()
+	exist_isu[jiaIsuUUID] = true
+	exist_isu_mtx.Unlock()
 
 	return c.JSON(http.StatusCreated, isu)
 }
@@ -1373,15 +1396,23 @@ func postIsuCondition(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	var count int
-	err = tx.Get(&count, "SELECT COUNT(id) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
+	// var count int
+	// err = tx.Get(&count, "SELECT COUNT(id) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
+	// if err != nil {
+	// 	c.Logger().Errorf("db error: %v", err)
+	// 	return c.NoContent(http.StatusInternalServerError)
+	// }
+	// if count == 0 {
+	// 	return c.String(http.StatusNotFound, "not found: isu")
+	// }
+	exist_isu_mtx.Lock()
+	if _, ok := exist_isu[jiaIsuUUID]; ok {
+
+	} else {
+		exist_isu_mtx.Unlock()
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
+	exist_isu_mtx.Unlock()
 
 	for _, cond := range req {
 		timestamp := time.Unix(cond.Timestamp, 0)
