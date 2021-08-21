@@ -25,6 +25,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/trace"
 )
 
@@ -208,6 +209,19 @@ func init() {
 	}
 }
 
+func NewCensus() echo.MiddlewareFunc {
+	return echo.WrapMiddleware(func(h http.Handler) http.Handler {
+		return &ochttp.Handler{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if span := trace.FromContext(r.Context()); span != nil {
+					// Do stuff
+				}
+				h.ServeHTTP(w, r)
+			}),
+		}
+	})
+}
+
 func main() {
 	// Cloud Trace
 	// Create and register a OpenCensus Stackdriver Trace exporter.
@@ -235,6 +249,7 @@ func main() {
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(NewCensus())
 
 	e.POST("/initialize", postInitialize)
 
