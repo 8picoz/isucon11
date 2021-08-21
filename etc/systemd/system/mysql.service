@@ -140,7 +140,7 @@ TimeoutStopSec=900
 ##
 
 # Number of files limit. previously [mysqld_safe] open-files-limit
-LimitNOFILE=32768
+LimitNOFILE=65535
 
 # Maximium core size. previously [mysqld_safe] core-file-size
 # LimitCore=
