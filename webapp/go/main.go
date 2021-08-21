@@ -180,11 +180,11 @@ func getEnv(key string, defaultValue string) string {
 
 func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 	return &MySQLConnectionEnv{
-		Host:     getEnv("MYSQL_HOST", "127.0.0.1"),
+		Host:     getEnv("MYSQL_HOST", "192.168.0.12"),
 		Port:     getEnv("MYSQL_PORT", "3306"),
-		User:     getEnv("MYSQL_USER", "isucon"),
+		User:     getEnv("MYSQL_USER", "other_server_isucon"),
 		DBName:   getEnv("MYSQL_DBNAME", "isucondition"),
-		Password: getEnv("MYSQL_PASS", "isucon"),
+		Password: getEnv("MYSQL_PASS", "yumcya"),
 	}
 }
 
