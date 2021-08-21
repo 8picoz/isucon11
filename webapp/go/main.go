@@ -1167,19 +1167,19 @@ func getTrend(c echo.Context) error {
 	defer span.End()
 
 	characterList := []Isu{}
-	err := db.Select(&characterList, "SELECT `character` FROM `isu`")
+	err := db.Select(&characterList, "SELECT * FROM `isu`")
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	m := make(map[string]bool)
-	uniq := []string{}
+	uniq := []Isu{}
 
 	for _, ele := range characterList {
 		if !m[ele.Character] {
 			m[ele.Character] = true
-			uniq = append(uniq, ele.Character)
+			uniq = append(uniq, ele)
 		}
 	}
 
@@ -1187,13 +1187,11 @@ func getTrend(c echo.Context) error {
 
 	for _, character := range uniq {
 		isuList := []Isu{}
-		err = db.Select(&isuList,
-			"SELECT * FROM `isu` WHERE `character` = ?",
-			character,
-		)
-		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
+
+		for _, ele := range characterList {
+			if ele.Character == character.Character {
+				isuList = append(isuList, ele)
+			}
 		}
 
 		characterInfoIsuConditions := []*TrendCondition{}
@@ -1244,7 +1242,7 @@ func getTrend(c echo.Context) error {
 		})
 		res = append(res,
 			TrendResponse{
-				Character: character,
+				Character: character.Character,
 				Info:      characterInfoIsuConditions,
 				Warning:   characterWarningIsuConditions,
 				Critical:  characterCriticalIsuConditions,
