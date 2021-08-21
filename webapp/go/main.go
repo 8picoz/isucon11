@@ -249,7 +249,7 @@ func main() {
 	// Be careful about using trace.AlwaysSample in a production application
 	// with significant traffic: a new trace will be started and exported for
 	// every request.
-	// trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(0.1)})
 
 	e := echo.New()
 	e.Debug = true
