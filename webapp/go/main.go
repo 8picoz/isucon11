@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
@@ -91,6 +92,14 @@ type IsuCondition struct {
 	Condition  string    `db:"condition"`
 	Message    string    `db:"message"`
 	CreatedAt  time.Time `db:"created_at"`
+}
+
+type CurrentIsuCondition struct {
+	JIAIsuUUID string    `db:"jia_isu_uuid"`
+	Timestamp  time.Time `db:"timestamp"`
+	IsSitting  bool      `db:"is_sitting"`
+	Condition  string    `db:"condition"`
+	Message    string    `db:"message"`
 }
 
 type MySQLConnectionEnv struct {
@@ -172,6 +181,9 @@ type JIAServiceRequest struct {
 	TargetBaseURL string `json:"target_base_url"`
 	IsuUUID       string `json:"isu_uuid"`
 }
+
+var current_isu_condition = map[string]CurrentIsuCondition{}
+var current_isu_condition_mtx sync.Mutex
 
 func getEnv(key string, defaultValue string) string {
 	val := os.Getenv(key)
@@ -381,6 +393,45 @@ func postInitialize(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	{
+		conditions := []IsuCondition{}
+		err = db.Select(&conditions,
+			"SELECT * FROM `isu_condition`")
+		if err != nil {
+			c.Logger().Errorf("db error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		for k := range current_isu_condition {
+			delete(current_isu_condition, k)
+		}
+
+		for _, condition := range conditions {
+			if val, ok := current_isu_condition[condition.JIAIsuUUID]; ok {
+				if condition.Timestamp.After(val.Timestamp) { // val < condition
+					current_isu_condition[condition.JIAIsuUUID] =
+						CurrentIsuCondition{
+							JIAIsuUUID: condition.JIAIsuUUID,
+							Timestamp:  condition.Timestamp,
+							IsSitting:  condition.IsSitting,
+							Condition:  condition.Condition,
+							Message:    condition.Message,
+						}
+				}
+			} else {
+				current_isu_condition[condition.JIAIsuUUID] =
+					CurrentIsuCondition{
+						JIAIsuUUID: condition.JIAIsuUUID,
+						Timestamp:  condition.Timestamp,
+						IsSitting:  condition.IsSitting,
+						Condition:  condition.Condition,
+						Message:    condition.Message,
+					}
+
+			}
+		}
+	}
+
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
 	})
@@ -531,37 +582,72 @@ func getIsuList(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	/*
+		responseList := []GetIsuListResponse{}
+		for _, isu := range isuList {
+			var lastCondition IsuCondition
+			foundLastCondition := true
+			err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+				isu.JIAIsuUUID)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					foundLastCondition = false
+				} else {
+					c.Logger().Errorf("db error: %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+			}
+
+			var formattedCondition *GetIsuConditionResponse
+			if foundLastCondition {
+				conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
+				if err != nil {
+					c.Logger().Error(err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+
+				formattedCondition = &GetIsuConditionResponse{
+					JIAIsuUUID:     lastCondition.JIAIsuUUID,
+					IsuName:        isu.Name,
+					Timestamp:      lastCondition.Timestamp.Unix(),
+					IsSitting:      lastCondition.IsSitting,
+					Condition:      lastCondition.Condition,
+					ConditionLevel: conditionLevel,
+					Message:        lastCondition.Message,
+				}
+			}
+
+			res := GetIsuListResponse{
+				ID:                 isu.ID,
+				JIAIsuUUID:         isu.JIAIsuUUID,
+				Name:               isu.Name,
+				Character:          isu.Character,
+				LatestIsuCondition: formattedCondition}
+			responseList = append(responseList, res)
+		}*/
 	responseList := []GetIsuListResponse{}
 	for _, isu := range isuList {
-		var lastCondition IsuCondition
-		foundLastCondition := true
-		err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
-			isu.JIAIsuUUID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				foundLastCondition = false
-			} else {
-				c.Logger().Errorf("db error: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-		}
+		current_isu_condition_mtx.Lock()
+		current_condition, foundLastCondition := current_isu_condition[isu.JIAIsuUUID]
+		current_isu_condition_mtx.Unlock()
+		// foundLastCondition := true
 
 		var formattedCondition *GetIsuConditionResponse
 		if foundLastCondition {
-			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
+			conditionLevel, err := calculateConditionLevel(current_condition.Condition)
 			if err != nil {
 				c.Logger().Error(err)
 				return c.NoContent(http.StatusInternalServerError)
 			}
 
 			formattedCondition = &GetIsuConditionResponse{
-				JIAIsuUUID:     lastCondition.JIAIsuUUID,
+				JIAIsuUUID:     current_condition.JIAIsuUUID,
 				IsuName:        isu.Name,
-				Timestamp:      lastCondition.Timestamp.Unix(),
-				IsSitting:      lastCondition.IsSitting,
-				Condition:      lastCondition.Condition,
+				Timestamp:      current_condition.Timestamp.Unix(),
+				IsSitting:      current_condition.IsSitting,
+				Condition:      current_condition.Condition,
 				ConditionLevel: conditionLevel,
-				Message:        lastCondition.Message,
+				Message:        current_condition.Message,
 			}
 		}
 
@@ -1304,6 +1390,7 @@ func postIsuCondition(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
 
+		current_isu_condition_mtx.Lock()
 		_, err = tx.Exec(
 			"INSERT INTO `isu_condition`"+
 				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
@@ -1311,8 +1398,19 @@ func postIsuCondition(c echo.Context) error {
 			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
 		if err != nil {
 			c.Logger().Errorf("db error: %v", err)
+			current_isu_condition_mtx.Unlock()
 			return c.NoContent(http.StatusInternalServerError)
 		}
+
+		current_isu_condition[jiaIsuUUID] =
+			CurrentIsuCondition{
+				JIAIsuUUID: jiaIsuUUID,
+				Timestamp:  timestamp,
+				IsSitting:  cond.IsSitting,
+				Condition:  cond.Condition,
+				Message:    cond.Message,
+			}
+		current_isu_condition_mtx.Unlock()
 
 	}
 
