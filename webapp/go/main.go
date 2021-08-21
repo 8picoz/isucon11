@@ -405,7 +405,7 @@ func postInitialize(c echo.Context) error {
 
 		for _, condition := range latest_conditions {
 			_, err = db.Exec(
-				"INSERT INTO 'latest_isu_condition'"+
+				"INSERT INTO `latest_isu_condition`"+
 					"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
 					"	VALUES (?, ?, ?, ?, ?)",
 				condition.JIAIsuUUID, condition.Timestamp, condition.IsSitting, condition.Condition, condition.Message,
@@ -1230,7 +1230,7 @@ func getTrend(c echo.Context) error {
 			uniq = append(uniq, ele.Character)
 		}
 	}
-	
+
 	res := []TrendResponse{}
 
 	for _, character := range uniq {
