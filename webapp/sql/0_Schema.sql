@@ -45,3 +45,6 @@ CREATE TABLE `latest_isu_condition` (
  
   PRIMARY KEY(`jia_isu_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+ALTER TABLE isu ADD INDEX jia_user_id_idx (jia_user_id);
+ALTER TABLE isu_condition ADD INDEX jia_isu_uuid_idx (jia_isu_uuid);
