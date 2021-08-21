@@ -95,6 +95,14 @@ type IsuCondition struct {
 	CreatedAt  time.Time `db:"created_at"`
 }
 
+type LastIsuCondition struct {
+	JIAIsuUUID string    `db:"jia_isu_uuid"`
+	Timestamp  time.Time `db:"timestamp"`
+	IsSitting  bool      `db:"is_sitting"`
+	Condition  string    `db:"condition"`
+	Message    string    `db:"message"`
+}
+
 type MySQLConnectionEnv struct {
 	Host     string
 	Port     string
@@ -568,9 +576,9 @@ func getIsuList(c echo.Context) error {
 
 	responseList := []GetIsuListResponse{}
 	for _, isu := range isuList {
-		var lastCondition IsuCondition
+		var lastCondition LastIsuCondition
 		foundLastCondition := true
-		err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+		err = tx.Get(&lastCondition, "SELECT * FROM `latest_isu_condition` WHERE `jia_isu_uuid` = ? LIMIT 1",
 			isu.JIAIsuUUID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
