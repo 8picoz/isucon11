@@ -379,6 +379,43 @@ func postInitialize(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	_, err = db.Exec("DELETE FROM `latest_isu_condition`")
+	if err != nil {
+		c.Logger().Errorf("db error : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	{
+		conditions := []IsuCondition{}
+		err = db.Select(&conditions,
+			"SELECT * FROM `isu_condition`")
+		if err != nil {
+			c.Logger().Errorf("db error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		latest_conditions := map[string]IsuCondition{}
+		for _, condition := range conditions {
+			if val, ok := latest_conditions[condition.JIAIsuUUID]; ok {
+				if condition.Timestamp.After(val.Timestamp) { // val < condition
+					latest_conditions[condition.JIAIsuUUID] = condition
+				}
+			} else {
+				latest_conditions[condition.JIAIsuUUID] = condition
+			}
+		}
+
+		for _, condition := range latest_conditions {
+			_, err = db.Exec(
+				"INSERT INTO 'latest_isu_condition'"+
+					"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
+					"	VALUES (?, ?, ?, ?, ?)",
+				condition.JIAIsuUUID, condition.Timestamp, condition.IsSitting, condition.Condition, condition.Message,
+			)
+			if err != nil {
+				c.Logger().Errorf("db error : %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+		}
+	}
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
 	})
@@ -704,6 +741,14 @@ func postIsu(c echo.Context) error {
 		&isu,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	timestamp := time.Unix(time.Now().Unix(), 0) // dummy
+	_, err = tx.Exec("INSERT INTO 'latest_isu_condition"+
+		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`, 'created_at`)"+
+		"	VALUES (?, ?, ?, ?, ?)", jiaIsuUUID, timestamp, false, "", "")
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1128,12 +1173,15 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 				Message:        c.Message,
 			}
 			conditionsResponse = append(conditionsResponse, &data)
+			if len(conditionsResponse) >= limit {
+				break
+			}
 		}
 	}
 
-	if len(conditionsResponse) > limit {
-		conditionsResponse = conditionsResponse[:limit]
-	}
+	// if len(conditionsResponse) > limit {
+	// 	conditionsResponse = conditionsResponse[:limit]
+	// }
 
 	return conditionsResponse, nil
 }
@@ -1313,7 +1361,15 @@ func postIsuCondition(c echo.Context) error {
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
-
+		_, err = tx.Exec(
+			"UPDATE `latest_isu_condition`"+
+				"	SET jia_isu_uuid = ?, timestamp = ?, is_sitting = ?, condition = ? message = ?"+
+				"WHERE jia_isu_uuid = ?", jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message, jiaIsuUUID,
+		)
+		if err != nil {
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 	}
 
 	err = tx.Commit()
