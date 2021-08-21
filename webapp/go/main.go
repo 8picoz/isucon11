@@ -746,8 +746,8 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	timestamp := time.Unix(time.Now().Unix(), 0) // dummy
-	_, err = tx.Exec("INSERT INTO 'latest_isu_condition"+
-		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`, 'created_at`)"+
+	_, err = tx.Exec("INSERT INTO `latest_isu_condition`"+
+		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
 		"	VALUES (?, ?, ?, ?, ?)", jiaIsuUUID, timestamp, false, "", "")
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -1362,9 +1362,7 @@ func postIsuCondition(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		_, err = tx.Exec(
-			"UPDATE `latest_isu_condition`"+
-				"	SET jia_isu_uuid = ?, timestamp = ?, is_sitting = ?, condition = ? message = ?"+
-				"WHERE jia_isu_uuid = ?", jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message, jiaIsuUUID,
+			"UPDATE `latest_isu_condition` SET `jia_isu_uuid` = ?, `timestamp` = ?, `is_sitting` = ?, `condition` = ?, `message` = ? WHERE `jia_isu_uuid` = ?", jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message, jiaIsuUUID,
 		)
 		if err != nil {
 			c.Logger().Errorf("db error: %v", err)
