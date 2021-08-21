@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.8
+	contrib.go.opencensus.io/integrations/ocsql v0.1.7
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/sessions v1.2.1

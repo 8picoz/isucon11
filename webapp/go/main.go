@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/integrations/ocsql"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -192,8 +193,15 @@ func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 }
 
 func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
+	driverName, _ := ocsql.Register("mysql", ocsql.WithAllTraceOptions())
 	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Asia%%2FTokyo", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
-	return sqlx.Open("mysql", dsn)
+	sqlDB, err := sql.Open(driverName, dsn)
+
+	// wraps for a pre-existing *sql.DB.
+	// sqlx asks for the driverName so it knows how to convert certain query constructs
+	// for the specified database.
+	// Let sqlx know we're using mysql
+	return sqlx.NewDb(sqlDB, "mysql"), err
 }
 
 func init() {
