@@ -8,5 +8,7 @@ deploy:
 
 .PHONY: deploy-mysql-s
 deploy-mysql-s:
+	rsync --rsync-path="sudo rsync" -r etc isucon@54.150.165.245:/
 	rsync -r webapp/sql/ isucon@54.150.165.245:/home/isucon/webapp/sql/
+	ssh isucon@54.150.165.245 "sudo sysctl -p"
 	ssh isucon@54.150.165.245 "/home/isucon/webapp/sql/init.sh"
