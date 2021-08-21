@@ -12,6 +12,7 @@ if [ -f /var/log/nginx/access.log ]; then
 fi
 
 cd /home/isucon
+source ./env.sh
 sudo systemctl restart mysql
 sudo systemctl restart isucondition.go.service
 sudo systemctl restart nginx
