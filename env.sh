@@ -1,8 +1,8 @@
-MYSQL_HOST="127.0.0.1"
+MYSQL_HOST="192.168.0.12"
 MYSQL_PORT=3306
-MYSQL_USER=isucon
+MYSQL_USER=other_server_isucon
 MYSQL_DBNAME=isucondition
-MYSQL_PASS=isucon
+MYSQL_PASS=yumcya
 POST_ISUCONDITION_TARGET_BASE_URL="https://isucondition-1.t.isucon.dev"
 
 GOOGLE_CLOUD_PROJECT="isucon11-323514"
