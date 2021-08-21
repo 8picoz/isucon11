@@ -1182,7 +1182,7 @@ func getTrend(c echo.Context) error {
 			uniq = append(uniq, ele.Character)
 		}
 	}
-	
+
 	res := []TrendResponse{}
 
 	for _, character := range uniq {
@@ -1288,7 +1288,7 @@ func postIsuCondition(c echo.Context) error {
 	defer tx.Rollback()
 
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
+	err = tx.Get(&count, "SELECT COUNT(id) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
