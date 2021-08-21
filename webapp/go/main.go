@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/json"
@@ -20,7 +19,6 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
-	"contrib.go.opencensus.io/integrations/ocsql"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -206,15 +204,19 @@ func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 }
 
 func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
-	driverName, _ := ocsql.Register("mysql", ocsql.WithAllTraceOptions())
-	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Asia%%2FTokyo", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
-	sqlDB, err := sql.Open(driverName, dsn)
+	/*
+		driverName, _ := ocsql.Register("mysql", ocsql.WithAllTraceOptions())
+		dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Asia%%2FTokyo", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
+		sqlDB, err := sql.Open(driverName, dsn)
 
-	// wraps for a pre-existing *sql.DB.
-	// sqlx asks for the driverName so it knows how to convert certain query constructs
-	// for the specified database.
-	// Let sqlx know we're using mysql
-	return sqlx.NewDb(sqlDB, "mysql"), err
+		// wraps for a pre-existing *sql.DB.
+		// sqlx asks for the driverName so it knows how to convert certain query constructs
+		// for the specified database.
+		// Let sqlx know we're using mysql
+		return sqlx.NewDb(sqlDB, "mysql"), err
+	*/
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Asia%%2FTokyo", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
+	return sqlx.Open("mysql", dsn)
 }
 
 func init() {
@@ -265,12 +267,12 @@ func main() {
 	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 
 	e := echo.New()
-	e.Debug = true
+	e.Debug = false
 	e.Logger.SetLevel(log.DEBUG)
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(NewCensus())
+	// e.Use(NewCensus())
 
 	e.POST("/initialize", postInitialize)
 
@@ -363,8 +365,8 @@ func getJIAServiceURL(tx *sqlx.Tx) string {
 // POST /initialize
 // サービスを初期化
 func postInitialize(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "postInitialize")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "postInitialize")
+	// defer span.End()
 
 	var request InitializeRequest
 	err := c.Bind(&request)
@@ -438,8 +440,8 @@ func postInitialize(c echo.Context) error {
 // POST /api/auth
 // サインアップ・サインイン
 func postAuthentication(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "postAuthentication")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "postAuthentication")
+	// defer span.End()
 
 	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
@@ -498,8 +500,8 @@ func postAuthentication(c echo.Context) error {
 // POST /api/signout
 // サインアウト
 func postSignout(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "postSignout")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "postSignout")
+	// defer span.End()
 
 	_, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -530,8 +532,8 @@ func postSignout(c echo.Context) error {
 // GET /api/user/me
 // サインインしている自分自身の情報を取得
 func getMe(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getMe")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getMe")
+	// defer span.End()
 
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -550,8 +552,8 @@ func getMe(c echo.Context) error {
 // GET /api/isu
 // ISUの一覧を取得
 func getIsuList(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getIsuList")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getIsuList")
+	// defer span.End()
 
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -670,8 +672,8 @@ func getIsuList(c echo.Context) error {
 // POST /api/isu
 // ISUを登録
 func postIsu(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "postIsu")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "postIsu")
+	// defer span.End()
 
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -807,8 +809,8 @@ func postIsu(c echo.Context) error {
 // GET /api/isu/:jia_isu_uuid
 // ISUの情報を取得
 func getIsuID(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getIsuID")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getIsuID")
+	// defer span.End()
 
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -840,8 +842,8 @@ func getIsuID(c echo.Context) error {
 // GET /api/isu/:jia_isu_uuid/icon
 // ISUのアイコンを取得
 func getIsuIcon(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getIsuIcon")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getIsuIcon")
+	// defer span.End()
 
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -873,8 +875,8 @@ func getIsuIcon(c echo.Context) error {
 // GET /api/isu/:jia_isu_uuid/graph
 // ISUのコンディショングラフ描画のための情報を取得
 func getIsuGraph(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getIsuGraph")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getIsuGraph")
+	// defer span.End()
 
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -932,8 +934,8 @@ func getIsuGraph(c echo.Context) error {
 
 // グラフのデータ点を一日分生成
 func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
-	_, span := trace.StartSpan(context.Background(), "generateIsuGraphResponse")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "generateIsuGraphResponse")
+	// defer span.End()
 
 	dataPoints := []GraphDataPointWithInfo{}
 	conditionsInThisHour := []IsuCondition{}
@@ -1041,8 +1043,8 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 // 複数のISUのコンディションからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-	_, span := trace.StartSpan(context.Background(), "calculateGraphDataPoint")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "calculateGraphDataPoint")
+	// defer span.End()
 
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
@@ -1103,8 +1105,8 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 // GET /api/condition/:jia_isu_uuid
 // ISUのコンディションを取得
 func getIsuConditions(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getIsuConditions")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getIsuConditions")
+	// defer span.End()
 
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -1170,8 +1172,8 @@ func getIsuConditions(c echo.Context) error {
 // ISUのコンディションをDBから取得
 func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
-	_, span := trace.StartSpan(context.Background(), "getIsuConditionsFromDB")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getIsuConditionsFromDB")
+	// defer span.End()
 
 	conditions := []IsuCondition{}
 	var err error
@@ -1226,8 +1228,8 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 
 // ISUのコンディションの文字列からコンディションレベルを計算
 func calculateConditionLevel(condition string) (string, error) {
-	_, span := trace.StartSpan(context.Background(), "calculateConditionLevel")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "calculateConditionLevel")
+	// defer span.End()
 
 	var conditionLevel string
 
@@ -1249,8 +1251,8 @@ func calculateConditionLevel(condition string) (string, error) {
 /// GET /api/trend
 // ISUの性格毎の最新のコンディション情報
 func getTrend(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getTrend")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getTrend")
+	// defer span.End()
 
 	characterList := []Isu{}
 	err := db.Select(&characterList, "SELECT * FROM `isu`")
@@ -1341,8 +1343,8 @@ func getTrend(c echo.Context) error {
 // POST /api/condition/:jia_isu_uuid
 // ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "postIsuCondition")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "postIsuCondition")
+	// defer span.End()
 
 	// TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
 	dropProbability := 0.99
@@ -1423,8 +1425,8 @@ func postIsuCondition(c echo.Context) error {
 
 // ISUのコンディションの文字列がcsv形式になっているか検証
 func isValidConditionFormat(conditionStr string) bool {
-	_, span := trace.StartSpan(context.Background(), "isValidConditionFormat")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "isValidConditionFormat")
+	// defer span.End()
 
 	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
 	const valueTrue = "true"
@@ -1458,8 +1460,8 @@ func isValidConditionFormat(conditionStr string) bool {
 }
 
 func getIndex(c echo.Context) error {
-	_, span := trace.StartSpan(context.Background(), "getIndex")
-	defer span.End()
+	// _, span := trace.StartSpan(context.Background(), "getIndex")
+	// defer span.End()
 
 	return c.File(frontendContentsPath + "/index.html")
 }
