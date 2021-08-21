@@ -6,3 +6,8 @@ deploy:
 	rsync --rsync-path="sudo rsync" -r etc/nginx isucon@3.114.252.19:/etc
 	rsync --rsync-path="sudo rsync" -r etc/mysql isucon@3.114.252.19:/etc
 	ssh isucon@3.114.252.19 "/home/isucon/init.sh"
+
+.PHONY: deploy-mysql-s
+deploy-mysql-s:
+	rsync -r webapp/sql/ isucon@54.150.165.245:/home/isucon/webapp/sql/
+	ssh isucon@54.150.165.245 "/home/isucon/webapp/sql/init.sh"
